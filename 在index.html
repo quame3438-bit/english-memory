@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>英语逐句听力</title>
+<style>
+body{margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#222}
+.wrap{max-width:720px;margin:auto;padding:20px 12px}
+.card{background:white;border-radius:18px;padding:15px;margin:12px 0}
+.btns,.row{display:flex;gap:8px;flex-wrap:wrap}
+button,label{background:#111;color:white;padding:12px;border-radius:12px;border:0;flex:1;text-align:center}
+.secondary{background:#eee;color:#222}
+input[type=file]{display:none}
+.subtitle{text-align:center;font-size:24px;font-weight:bold;min-height:80px;padding:10px}
+.meta{text-align:center;color:#888}
+.item{padding:10px;border-bottom:1px solid #eee}
+.active{background:#eee;border-radius:10px}
+video,audio{width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>英语逐句听力</h1>
+
+<div class="card">
+<div class="btns">
+<label>＋ 添加视频/音频<input id="mediaFile" type="file" accept="video/*,audio/*"></label>
+<label class="secondary">＋ 导入 SRT 字幕<input id="srtFile" type="file" accept="*/*"></label>
+</div>
+<div id="playerBox"></div>
+</div>
+
+<div class="card">
+<div class="subtitle" id="subtitle">请先导入字幕</div>
+<div class="meta" id="meta">0 / 0</div>
+</div>
+
+<div class="card">
+<div class="row">
+<button onclick="prevLine()" class="secondary">上一句</button>
+<button onclick="playCurrent()">播放本句</button>
+<button onclick="nextLine()" class="secondary">下一句</button>
+</div>
+<div style="display:grid;gap:10px;margin-top:12px">
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+速度
+<select id="speed" onchange="applySpeed()" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:10px;background:white;font-size:15px">
+<option value="0.2">0.2×</option>
+<option value="0.4">0.4×</option>
+<option value="0.5">0.5×</option>
+<option value="0.8">0.8×</option>
+<option value="1" selected>1.0×</option>
+<option value="1.2">1.2×</option>
+<option value="1.5">1.5×</option>
+<option value="2">2.0×</option>
+</select>
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+时间间隔
+<select id="gap" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:10px;background:white;font-size:15px">
+<option value="1">1 秒</option>
+<option value="2">2 秒</option>
+<option value="3" selected>3 秒</option>
+<option value="5">5 秒</option>
+<option value="6">6 秒</option>
+<option value="10">10 秒</option>
+<option value="30">30 秒</option>
+<option value="60">1 分钟</option>
+</select>
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+<input id="autoStop" type="checkbox" checked> 播放完自动停止
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+<input id="loopOne" type="checkbox"> 单句循环
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+<input id="autoNext" type="checkbox"> 自动播放下一句
+</label>
+
+</div>
+</div>
+
+<div class="card">
+<b>字幕列表</b>
+<div id="list"></div>
+</div>
+</div>
+
+<script>
+let media=null,subs=[],current=0,url=null,lock=false;
+const $=x=>document.querySelector(x);
+
+$("#mediaFile").onchange=e=>{
+let f=e.target.files[0];if(!f)return;
+if(url)URL.revokeObjectURL(url);
+url=URL.createObjectURL(f);
+$("#playerBox").innerHTML=f.type.startsWith("video/")?
+`<video id="media" controls playsinline src="${url}"></video>`:
+`<audio id="media" controls src="${url}"></audio>`;
+media=$("#media");
+media.ontimeupdate=watch;
+applySpeed();
+};
+
+$("#srtFile").onchange=async e=>{
+let f=e.target.files[0];if(!f)return;
+let buf=await f.arrayBuffer();
+let text=new TextDecoder("utf-8").decode(buf);
+if(text.includes("�")) text=new TextDecoder("gbk").decode(buf);
+subs=parseSRT(text);
+current=0;
+render();
+};
+
+function parseTime(t){
+let m=t.trim().match(/(\d+):(\d+):(\d+)[,.](\d+)/);
+return m?+m[1]*3600+ +m[2]*60+ +m[3]+ +m[4]/1000:0;
+}
+function parseSRT(t){
+return t.replace(/\r/g,"").trim().split(/\n\s*\n/).map(b=>{
+let l=b.split("\n"),i=l.findIndex(x=>x.includes("-->"));
+if(i<0)return null;
+let a=l[i].split("-->");
+return {start:parseTime(a[0]),end:parseTime(a[1]),text:l.slice(i+1).join("\n")};
+}).filter(Boolean);
+}
+function render(){
+$("#subtitle").innerHTML=subs[current]?.text||"请先导入字幕";
+$("#meta").textContent=subs.length?`${current+1}/${subs.length}`:"0/0";
+$("#list").innerHTML=subs.map((s,i)=>`<div class="item ${i==current?'active':''}" onclick="go(${i})">${i+1}. ${s.text}</div>`).join("");
+}
+function go(i){current=Math.max(0,Math.min(subs.length-1,i));if(media)media.currentTime=subs[current].start;render()}
+function applySpeed(){if(media) media.playbackRate=+$("#speed").value}
+function playCurrent(){if(!media||!subs.length)return;media.currentTime=subs[current].start;applySpeed();media.play()}
+function prevLine(){go(current-1);playCurrent()}
+function nextLine(){go(current+1);playCurrent()}
+function watch(){
+if(!media||!subs.length||lock)return;
+if(media.currentTime>=subs[current].end){
+lock=true;
+
+if($("#loopOne").checked){
+  media.pause();
+  media.currentTime=subs[current].start;
+  const gapMs=(+$("#gap").value)*1000;
+  setTimeout(()=>{
+    lock=false;
+    applySpeed();
+    media.play();
+  },gapMs);
+  return;
+}
+
+media.pause();
+media.currentTime=subs[current].end;
+
+if($("#autoNext").checked && current<subs.length-1){
+  const gapMs=(+$("#gap").value)*1000;
+  setTimeout(()=>{
+    current++;
+    render();
+    media.currentTime=subs[current].start;
+    applySpeed();
+    lock=false;
+    media.play();
+  },gapMs);
+  return;
+}
+
+if($("#autoStop").checked){
+  lock=false;
+  return;
+}
+
+if(current<subs.length-1){
+  current++;
+  render();
+}
+lock=false;
+}
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js", {updateViaCache:"none"});
+      await reg.update();
+    } catch(e) {}
+  });
+}
+</script>
+</body>
+</html>
