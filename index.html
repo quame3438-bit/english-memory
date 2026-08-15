@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>英语逐句听力</title>
 <style>
 body{margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#222}
@@ -42,14 +45,49 @@ video,audio{width:100%}
 <button onclick="playCurrent()">播放本句</button>
 <button onclick="nextLine()" class="secondary">下一句</button>
 </div>
-<p>
-<label style="background:none;color:#222">
-<input id="autoStop" type="checkbox" checked> 播放完自动停
+<div style="display:grid;gap:10px;margin-top:12px">
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+速度
+<select id="speed" onchange="applySpeed()" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:10px;background:white;font-size:15px">
+<option value="0.2">0.2×</option>
+<option value="0.4">0.4×</option>
+<option value="0.5">0.5×</option>
+<option value="0.8">0.8×</option>
+<option value="1" selected>1.0×</option>
+<option value="1.2">1.2×</option>
+<option value="1.5">1.5×</option>
+<option value="2">2.0×</option>
+</select>
 </label>
-<label style="background:none;color:#222">
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+时间间隔
+<select id="gap" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:10px;background:white;font-size:15px">
+<option value="1">1 秒</option>
+<option value="2">2 秒</option>
+<option value="3" selected>3 秒</option>
+<option value="5">5 秒</option>
+<option value="6">6 秒</option>
+<option value="10">10 秒</option>
+<option value="30">30 秒</option>
+<option value="60">1 分钟</option>
+</select>
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+<input id="autoStop" type="checkbox" checked> 播放完自动停止
+</label>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
 <input id="loopOne" type="checkbox"> 单句循环
 </label>
-</p>
+
+<label style="background:none;color:#222;text-align:left;padding:0">
+<input id="autoNext" type="checkbox"> 自动播放下一句
+</label>
+
+</div>
 </div>
 
 <div class="card">
@@ -71,6 +109,7 @@ $("#playerBox").innerHTML=f.type.startsWith("video/")?
 `<audio id="media" controls src="${url}"></audio>`;
 media=$("#media");
 media.ontimeupdate=watch;
+applySpeed();
 };
 
 $("#srtFile").onchange=async e=>{
@@ -101,17 +140,63 @@ $("#meta").textContent=subs.length?`${current+1}/${subs.length}`:"0/0";
 $("#list").innerHTML=subs.map((s,i)=>`<div class="item ${i==current?'active':''}" onclick="go(${i})">${i+1}. ${s.text}</div>`).join("");
 }
 function go(i){current=Math.max(0,Math.min(subs.length-1,i));if(media)media.currentTime=subs[current].start;render()}
-function playCurrent(){if(!media||!subs.length)return;media.currentTime=subs[current].start;media.play()}
+function applySpeed(){if(media) media.playbackRate=+$("#speed").value}
+function playCurrent(){if(!media||!subs.length)return;media.currentTime=subs[current].start;applySpeed();media.play()}
 function prevLine(){go(current-1);playCurrent()}
 function nextLine(){go(current+1);playCurrent()}
 function watch(){
 if(!media||!subs.length||lock)return;
 if(media.currentTime>=subs[current].end){
 lock=true;
-if($("#loopOne").checked){media.pause();media.currentTime=subs[current].start;setTimeout(()=>{lock=false;media.play()},200)}
-else if($("#autoStop").checked){media.pause();lock=false}
-else{if(current<subs.length-1){current++;render()}lock=false}
+
+if($("#loopOne").checked){
+  media.pause();
+  media.currentTime=subs[current].start;
+  const gapMs=(+$("#gap").value)*1000;
+  setTimeout(()=>{
+    lock=false;
+    applySpeed();
+    media.play();
+  },gapMs);
+  return;
 }
+
+media.pause();
+media.currentTime=subs[current].end;
+
+if($("#autoNext").checked && current<subs.length-1){
+  const gapMs=(+$("#gap").value)*1000;
+  setTimeout(()=>{
+    current++;
+    render();
+    media.currentTime=subs[current].start;
+    applySpeed();
+    lock=false;
+    media.play();
+  },gapMs);
+  return;
+}
+
+if($("#autoStop").checked){
+  lock=false;
+  return;
+}
+
+if(current<subs.length-1){
+  current++;
+  render();
+}
+lock=false;
+}
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js", {updateViaCache:"none"});
+      await reg.update();
+    } catch(e) {}
+  });
 }
 </script>
 </body>
