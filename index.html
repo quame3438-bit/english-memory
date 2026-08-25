@@ -1,0 +1,1592 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>英语逐句听力</title>
+<style>
+:root{
+  --bg:#f5f5f7;--card:#fff;--text:#222;--muted:#777;
+  --line:#e8e8ec;--dark:#111;--soft:#efeff3;--blue:#1f6feb;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif
+}
+.wrap{max-width:860px;margin:auto;padding:14px 10px 40px}
+h1{font-size:26px;margin:8px 2px 14px}
+.card{
+  background:var(--card);border-radius:18px;padding:14px;margin:12px 0;
+  box-shadow:0 2px 10px rgba(0,0,0,.035)
+}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button,.fileBtn{
+  appearance:none;border:0;border-radius:12px;background:var(--dark);color:#fff;
+  padding:11px 12px;font-size:15px;font-weight:600;cursor:pointer;flex:1;text-align:center
+}
+button.secondary,.fileBtn.secondary{background:var(--soft);color:var(--text)}
+button.on{background:var(--blue)!important;color:#fff!important}
+input[type=file]{display:none}
+video,audio{width:100%;margin-top:10px;border-radius:12px;background:#000}
+
+.subtitle{
+  font-size:24px;font-weight:700;min-height:96px;padding:12px 8px;text-align:center;
+  white-space:pre-wrap;line-height:1.55;user-select:text;-webkit-user-select:text
+}
+.meta{text-align:center;color:var(--muted);font-size:13px}
+
+.transport,.abrow{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:stretch
+}
+.transportCell{display:flex;flex-direction:column;gap:6px}
+.transportCell button,.abrow button{height:44px}
+.abrow{margin-top:9px}
+.abInfo,.tip,.status{font-size:12px;color:var(--muted);text-align:center;margin-top:7px;line-height:1.5}
+
+.controls{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px 12px;align-items:center;margin-top:14px
+}
+.ctrl{display:flex;align-items:center;gap:7px;min-height:42px;white-space:nowrap}
+select{
+  min-width:0;max-width:100%;padding:8px 9px;border:1px solid #d9d9df;
+  border-radius:10px;background:#fff;font-size:14px
+}
+
+.waveBox{position:relative;margin-top:12px}
+#wave{
+  width:100%;height:88px;background:#f4f5f7;border-radius:12px;display:block;
+  touch-action:none;cursor:pointer
+}
+.waveMeta{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:4px}
+
+.item{
+  padding:11px 8px;border-bottom:1px solid var(--line);white-space:pre-wrap;
+  line-height:1.55;cursor:pointer
+}
+.item.active{background:#edf3ff;border-radius:10px}
+.itemNum{color:#999;margin-right:6px}
+
+#lookup{
+  position:fixed;z-index:99;left:12px;right:12px;bottom:16px;max-width:760px;margin:auto;
+  background:#111;color:#fff;border-radius:16px;padding:13px 14px;display:none;
+  box-shadow:0 12px 32px rgba(0,0,0,.3)
+}
+#lookupText{font-weight:700;font-size:16px;word-break:break-word}
+.lookupBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.lookupBtns button{background:#fff;color:#111;padding:9px}
+
+@media(max-width:620px){
+  .controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .subtitle{font-size:22px}
+  button,.fileBtn{font-size:14px;padding:10px 8px}
+}
+
+.playlistBox{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.episodeControls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:9px}
+.playlistRow{display:flex;gap:8px;align-items:center}
+.playlistRow select{flex:1;min-width:0}
+.playlistHint{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>英语逐句听力</h1>
+
+  <div class="card">
+    <div class="row">
+      <label class="fileBtn">＋ 添加视频/录音
+        <input id="mediaFile" type="file" accept="video/*,audio/*,.m4a,.mp3,.wav,.aac,.caf,.mp4,.mov" multiple>
+      </label>
+      <label class="fileBtn secondary">＋ 导入字幕
+        <input id="subtitleFile" type="file" accept="*/*">
+      </label>
+    </div>
+
+    <div id="playerBox"></div>
+
+    <div class="playlistBox">
+      <div class="episodeControls">
+        <button class="secondary" onclick="playPreviousEpisode()">上一集</button>
+        <button id="episodePlayPause" onclick="toggleEpisodePlayPause()">▶ 播放</button>
+        <button class="secondary" onclick="playNextEpisode()">下一集</button>
+      </div>
+      <div class="playlistRow">
+        <label for="playlistSelect">播放列表</label>
+        <select id="playlistSelect" onchange="selectPlaylistEpisode()">
+          <option value="">暂无视频</option>
+        </select>
+      </div>
+      <div class="episodeControls" style="margin-top:9px;margin-bottom:0">
+        <button class="secondary" onclick="moveEpisodeUp()">↑ 上移</button>
+        <button class="secondary" onclick="moveEpisodeDown()">↓ 下移</button>
+        <button class="secondary" onclick="deleteEpisode()">删除</button>
+      </div>
+      <div class="playlistHint">每次“＋ 添加视频/录音”都会加入当前播放列表，并自动记住上次播放的集数、位置和播放速度。</div>
+    </div>
+
+    <div class="waveBox">
+      <canvas id="wave"></canvas>
+    </div>
+    <div class="waveMeta">
+      <span id="currentTimeText">00:00</span>
+      <span id="durationText">00:00</span>
+    </div>
+    <div class="status" id="waveStatus">添加媒体后生成波形；白色竖线为当前播放位置，可点击或拖动定位。</div>
+  </div>
+
+  <div class="card">
+    <div class="subtitle" id="subtitle">请先导入字幕</div>
+    <div class="meta" id="subtitleMeta">0 / 0</div>
+    <div class="tip">按住并选中字幕中的单词、短语或句子，可直接英语查询、发音，也可打开豆包。</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="secondary" onclick="playPreviousLine()">上一句</button>
+      <button id="mainPlayPause" onclick="toggleMainPlayPause()">▶ 播放</button>
+      <button class="secondary" onclick="playNextLine()">下一句</button>
+    </div>
+
+    <div class="transport" style="margin-top:9px">
+      <div class="transportCell">
+        <button class="secondary" onclick="seekRelative(-getSeekSeconds('rewindSeconds'))">⏪ 快退</button>
+        <select id="rewindSeconds"></select>
+      </div>
+      <div class="transportCell">
+        <button class="secondary" disabled style="opacity:.35">定位</button>
+        <div style="height:36px"></div>
+      </div>
+      <div class="transportCell">
+        <button class="secondary" onclick="seekRelative(getSeekSeconds('forwardSeconds'))">快进 ⏩</button>
+        <select id="forwardSeconds"></select>
+      </div>
+    </div>
+
+    <div class="abrow">
+      <button id="btnA" class="secondary" onclick="setPointA()">A</button>
+      <button id="btnAB" class="secondary" onclick="toggleABLoop()">A/B循环</button>
+      <button id="btnB" class="secondary" onclick="setPointB()">B</button>
+    </div>
+    <div class="abInfo" id="abInfo">A：未设置　B：未设置</div>
+
+    <div class="controls">
+      <div class="ctrl">
+        <label for="displayMode">显示</label>
+        <select id="displayMode" onchange="renderSubtitle()">
+          <option value="both">中英</option>
+          <option value="zh">中文</option>
+          <option value="en">英文</option>
+          <option value="none">不显示</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label for="fontSize">字体</label>
+        <select id="fontSize" onchange="applyFontSize()">
+          <option>16</option><option>18</option><option>20</option><option>22</option>
+          <option selected>24</option><option>26</option><option>28</option><option>30</option>
+          <option>32</option><option>36</option><option>40</option><option>44</option><option>48</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label for="speed">速度</label>
+        <select id="speed" onchange="applySpeed()">
+          <option value="0.2">0.2×</option>
+          <option value="0.3">0.3×</option>
+          <option value="0.4">0.4×</option>
+          <option value="0.5">0.5×</option>
+          <option value="0.6">0.6×</option>
+          <option value="0.7">0.7×</option>
+          <option value="0.8">0.8×</option>
+          <option value="0.9">0.9×</option>
+          <option value="1" selected>1.0×</option>
+          <option value="1.1">1.1×</option>
+          <option value="1.2">1.2×</option>
+          <option value="1.3">1.3×</option>
+          <option value="1.4">1.4×</option>
+          <option value="1.5">1.5×</option>
+          <option value="1.6">1.6×</option>
+          <option value="1.7">1.7×</option>
+          <option value="1.8">1.8×</option>
+          <option value="1.9">1.9×</option>
+          <option value="2">2.0×</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label for="playMode">播放模式</label>
+        <select id="playMode" onchange="onPlayModeChange()">
+          <option value="full" selected>完整播放</option>
+          <option value="current">播放本句</option>
+          <option value="loop">单句循环</option>
+          <option value="repeatNext">（ ）遍后播放下一句</option>
+        </select>
+      </div>
+
+      <div id="repeatOptions" style="display:none;grid-column:1/-1">
+        <div class="controls" style="margin:0">
+          <div class="ctrl">
+            <label for="repeatCount">遍数</label>
+            <select id="repeatCount"></select>
+          </div>
+          <div class="ctrl">
+            <label for="gap">时间间隔</label>
+            <select id="gap">
+              <option value="1">1秒</option>
+              <option value="2">2秒</option>
+              <option value="3" selected>3秒</option>
+              <option value="5">5秒</option>
+              <option value="6">6秒</option>
+              <option value="10">10秒</option>
+              <option value="30">30秒</option>
+              <option value="60">1分钟</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>字幕列表</b>
+    <div id="subtitleList"></div>
+  </div>
+</div>
+
+<div id="lookup">
+  <div id="lookupText"></div>
+  <div id="lookupResult" style="margin-top:8px;line-height:1.55;max-height:42vh;overflow:auto;color:#f1f1f1"></div>
+  <div class="lookupBtns">
+    <button onclick="englishLookupSelection()">英语查询</button>
+    <button onclick="speakSelection()">🔊 发音</button>
+    <button onclick="doubaoSearchSelection()">打开豆包</button>
+    <button onclick="hideLookup()">关闭</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+let media = null;
+let mediaUrl = null;
+
+const PLAYER_STATE_KEY = "english_listener_player_state_v1";
+const MEDIA_DB_NAME = "english_listener_media_db_v1";
+const MEDIA_STORE = "mediaFiles";
+let playlist = [];
+let currentEpisodeIndex = -1;
+let lastPositionSaveAt = 0;
+
+let subtitles = [];
+let currentIndex = 0;
+
+let sentenceModeRunning = false;
+let sentencePlayCount = 0;
+let sentenceTimer = null;
+let internalSeek = false;
+
+let pointA = null;
+let pointB = null;
+let abEnabled = false;
+
+let wavePeaks = [];
+let waveReady = false;
+let draggingWave = false;
+
+let selectedText = "";
+
+(function initSelects(){
+  for(const id of ["rewindSeconds","forwardSeconds"]){
+    const s = $("#"+id);
+    for(let i=1;i<=10;i++){
+      const o = document.createElement("option");
+      o.value = i;
+      o.textContent = i+"秒";
+      if(i===5)o.selected = true;
+      s.appendChild(o);
+    }
+  }
+
+  const r = $("#repeatCount");
+
+  const zero = document.createElement("option");
+  zero.value = "0";
+  zero.textContent = "0（不重复）";
+  r.appendChild(zero);
+
+  const inf = document.createElement("option");
+  inf.value = "inf";
+  inf.textContent = "无限";
+  r.appendChild(inf);
+
+  for(let i=1;i<=100;i++){
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = i;
+    if(i===1)o.selected = true;
+    r.appendChild(o);
+  }
+})();
+
+
+function openMediaDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(MEDIA_DB_NAME,1);
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(MEDIA_STORE)){
+        db.createObjectStore(MEDIA_STORE,{keyPath:"key"});
+      }
+    };
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+async function saveMediaFileToDB(item){
+  try{
+    const db = await openMediaDB();
+    await new Promise((resolve,reject)=>{
+      const tx = db.transaction(MEDIA_STORE,"readwrite");
+      tx.objectStore(MEDIA_STORE).put({
+        key:episodeKey(item),
+        name:item.name,
+        size:item.size,
+        lastModified:item.lastModified,
+        type:item.type,
+        blob:item.file
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = ()=>reject(tx.error);
+    });
+    db.close();
+  }catch(err){
+    console.warn("保存录音失败",err);
+  }
+}
+
+async function deleteMediaFileFromDB(item){
+  try{
+    const db = await openMediaDB();
+    await new Promise((resolve,reject)=>{
+      const tx = db.transaction(MEDIA_STORE,"readwrite");
+      tx.objectStore(MEDIA_STORE).delete(episodeKey(item));
+      tx.oncomplete = resolve;
+      tx.onerror = ()=>reject(tx.error);
+    });
+    db.close();
+  }catch(err){}
+}
+
+async function savePlaylistOrder(){
+  try{
+    const state = getStoredPlayerState();
+    state.playlistOrder = playlist.map(episodeKey);
+    state.episodeKey = currentEpisodeIndex>=0 && playlist[currentEpisodeIndex]
+      ? episodeKey(playlist[currentEpisodeIndex])
+      : (state.episodeKey || "");
+    localStorage.setItem(PLAYER_STATE_KEY,JSON.stringify(state));
+  }catch(_){}
+}
+
+async function restoreSavedPlaylist(){
+  try{
+    const db = await openMediaDB();
+    const rows = await new Promise((resolve,reject)=>{
+      const tx = db.transaction(MEDIA_STORE,"readonly");
+      const req = tx.objectStore(MEDIA_STORE).getAll();
+      req.onsuccess = ()=>resolve(req.result || []);
+      req.onerror = ()=>reject(req.error);
+    });
+    db.close();
+
+    const state = getStoredPlayerState();
+    const order = Array.isArray(state.playlistOrder) ? state.playlistOrder : [];
+    const byKey = new Map(rows.map(r=>[r.key,r]));
+    const ordered = [];
+
+    for(const key of order){
+      const r = byKey.get(key);
+      if(r){
+        ordered.push({
+          file:r.blob,
+          name:r.name,
+          size:r.size,
+          lastModified:r.lastModified,
+          type:r.type
+        });
+        byKey.delete(key);
+      }
+    }
+    for(const r of byKey.values()){
+      ordered.push({
+        file:r.blob,
+        name:r.name,
+        size:r.size,
+        lastModified:r.lastModified,
+        type:r.type
+      });
+    }
+
+    playlist = ordered;
+    refreshPlaylistSelect();
+
+    if(playlist.length){
+      let idx = playlist.findIndex(x=>episodeKey(x)===state.episodeKey);
+      if(idx<0)idx=0;
+      await loadEpisode(idx,false);
+    }
+  }catch(err){
+    console.warn("恢复录音列表失败",err);
+  }
+}
+
+$("#mediaFile").addEventListener("change", async e=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length)return;
+
+  for(const file of files){
+    const exists = playlist.some(x => x.name===file.name && x.size===file.size && x.lastModified===file.lastModified);
+    if(!exists){
+      const item = {
+        file,
+        name:file.name,
+        size:file.size,
+        lastModified:file.lastModified,
+        type:file.type
+      };
+      playlist.push(item);
+      await saveMediaFileToDB(item);
+    }
+  }
+
+  refreshPlaylistSelect();
+  await savePlaylistOrder();
+
+  const firstAdded = playlist.findIndex(x => x.file===files[0]);
+  await loadEpisode(firstAdded>=0 ? firstAdded : playlist.length-1, true);
+
+  e.target.value = "";
+});
+
+async function loadEpisode(index, autoplay=false){
+  if(index<0 || index>=playlist.length)return;
+
+  saveCurrentPlaybackState();
+  stopSentenceTimer();
+
+  currentEpisodeIndex = index;
+  const item = playlist[index];
+  const file = item.file;
+
+  if(mediaUrl)URL.revokeObjectURL(mediaUrl);
+  mediaUrl = URL.createObjectURL(file);
+
+  $("#playerBox").innerHTML = file.type.startsWith("video/")
+    ? `<video id="media" controls playsinline preload="metadata" src="${mediaUrl}"></video>`
+    : `<audio id="media" controls preload="metadata" src="${mediaUrl}"></audio>`;
+
+  media = $("#media");
+
+  media.addEventListener("timeupdate", ()=>{
+    onTimeUpdate();
+    const now = Date.now();
+    if(now-lastPositionSaveAt>1000){
+      lastPositionSaveAt = now;
+      saveCurrentPlaybackState();
+    }
+  });
+  media.addEventListener("play", ()=>{
+    updatePlayPauseButton();
+    updateEpisodePlayPauseButton();
+  });
+  media.addEventListener("pause", ()=>{
+    updatePlayPauseButton();
+    updateEpisodePlayPauseButton();
+    saveCurrentPlaybackState();
+  });
+  media.addEventListener("ended", ()=>{
+    sentenceModeRunning = false;
+    updatePlayPauseButton();
+    updateEpisodePlayPauseButton();
+    saveCurrentPlaybackState();
+  });
+  media.addEventListener("loadedmetadata", ()=>{
+    restoreEpisodePosition();
+    applySpeed();
+    updateTimeText();
+    drawWave();
+    if(autoplay) media.play().catch(()=>{});
+  });
+  media.addEventListener("seeking", ()=>{
+    if(!internalSeek){
+      sentenceModeRunning = false;
+      sentencePlayCount = 0;
+      stopSentenceTimer();
+    }
+  });
+
+  pointA = null;
+  pointB = null;
+  abEnabled = false;
+  updateABUI();
+
+  buildWave(file);
+  refreshPlaylistSelect();
+  updatePlayPauseButton();
+  updateEpisodePlayPauseButton();
+}
+
+function refreshPlaylistSelect(){
+  const s = $("#playlistSelect");
+  if(!s)return;
+  if(!playlist.length){
+    s.innerHTML = `<option value="">暂无视频</option>`;
+    return;
+  }
+  s.innerHTML = playlist.map((x,i)=>
+    `<option value="${i}" ${i===currentEpisodeIndex?"selected":""}>${i+1}. ${escapeHtml(x.name)}</option>`
+  ).join("");
+}
+
+function moveEpisodeUp(){
+  if(currentEpisodeIndex<=0 || !playlist.length)return;
+  const i = currentEpisodeIndex;
+  [playlist[i-1],playlist[i]] = [playlist[i],playlist[i-1]];
+  currentEpisodeIndex = i-1;
+  refreshPlaylistSelect();
+  saveCurrentPlaybackState();
+  savePlaylistOrder();
+}
+
+function moveEpisodeDown(){
+  if(currentEpisodeIndex<0 || currentEpisodeIndex>=playlist.length-1)return;
+  const i = currentEpisodeIndex;
+  [playlist[i],playlist[i+1]] = [playlist[i+1],playlist[i]];
+  currentEpisodeIndex = i+1;
+  refreshPlaylistSelect();
+  saveCurrentPlaybackState();
+  savePlaylistOrder();
+}
+
+async function deleteEpisode(){
+  if(currentEpisodeIndex<0 || !playlist.length)return;
+
+  const oldIndex = currentEpisodeIndex;
+  const wasPlaying = media && !media.paused;
+  const removedItem = playlist[oldIndex];
+  playlist.splice(oldIndex,1);
+  await deleteMediaFileFromDB(removedItem);
+  await savePlaylistOrder();
+
+  if(!playlist.length){
+    currentEpisodeIndex = -1;
+    if(mediaUrl){ URL.revokeObjectURL(mediaUrl); mediaUrl=null; }
+    media = null;
+    $("#playerBox").innerHTML = "";
+    refreshPlaylistSelect();
+    updatePlayPauseButton();
+    updateEpisodePlayPauseButton();
+    drawWave();
+    updateTimeText();
+    saveCurrentPlaybackState();
+    return;
+  }
+
+  const nextIndex = Math.min(oldIndex, playlist.length-1);
+  currentEpisodeIndex = nextIndex;
+  refreshPlaylistSelect();
+  loadEpisode(nextIndex, wasPlaying);
+}
+
+function selectPlaylistEpisode(){
+  const i = +$("#playlistSelect").value;
+  if(Number.isInteger(i))loadEpisode(i, true);
+}
+
+function playPreviousEpisode(){
+  if(!playlist.length)return;
+  const i = currentEpisodeIndex<=0 ? 0 : currentEpisodeIndex-1;
+  loadEpisode(i, true);
+}
+
+function playNextEpisode(){
+  if(!playlist.length)return;
+  const i = currentEpisodeIndex<0 ? 0 : Math.min(playlist.length-1,currentEpisodeIndex+1);
+  loadEpisode(i, true);
+}
+
+function toggleEpisodePlayPause(){
+  if(!media)return;
+  if(media.paused) media.play();
+  else media.pause();
+}
+
+function updateEpisodePlayPauseButton(){
+  const b = $("#episodePlayPause");
+  if(!b)return;
+  b.textContent = media && !media.paused ? "⏸ 暂停" : "▶ 播放";
+}
+
+function getStoredPlayerState(){
+  try{
+    return JSON.parse(localStorage.getItem(PLAYER_STATE_KEY) || "{}");
+  }catch(_){
+    return {};
+  }
+}
+
+function saveCurrentPlaybackState(){
+  const old = getStoredPlayerState();
+  const positions = old.positions || {};
+
+  if(media && currentEpisodeIndex>=0 && playlist[currentEpisodeIndex]){
+    const key = episodeKey(playlist[currentEpisodeIndex]);
+    positions[key] = media.currentTime || 0;
+  }
+
+  const state = {
+    speed: $("#speed")?.value || old.speed || "1",
+    episodeKey: currentEpisodeIndex>=0 && playlist[currentEpisodeIndex] ? episodeKey(playlist[currentEpisodeIndex]) : (old.episodeKey || ""),
+    positions,
+    playlistOrder: playlist.map(episodeKey)
+  };
+
+  try{
+    localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(state));
+  }catch(_){}
+}
+
+function restoreEpisodePosition(){
+  if(!media || currentEpisodeIndex<0 || !playlist[currentEpisodeIndex])return;
+  const state = getStoredPlayerState();
+  const key = episodeKey(playlist[currentEpisodeIndex]);
+  const t = +(state.positions?.[key] || 0);
+  if(t>0 && isFinite(media.duration)){
+    media.currentTime = Math.min(t, Math.max(0,media.duration-0.1));
+  }
+}
+
+function episodeKey(item){
+  return [item.name,item.size,item.lastModified].join("|");
+}
+
+function restoreSavedSettings(){
+  const state = getStoredPlayerState();
+  if(state.speed && $("#speed")){
+    const has = Array.from($("#speed").options).some(o=>o.value===String(state.speed));
+    if(has)$("#speed").value = String(state.speed);
+  }
+}
+
+$("#subtitleFile").addEventListener("change", async e=>{
+  const file = e.target.files?.[0];
+  if(!file)return;
+
+  try{
+    const buffer = await file.arrayBuffer();
+
+    let text = new TextDecoder("utf-8",{fatal:false}).decode(buffer);
+    text = text.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");
+
+    let parsed = parseSubtitleText(text);
+
+    if(!parsed.length){
+      try{
+        text = new TextDecoder("gb18030",{fatal:false}).decode(buffer);
+        text = text.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");
+        parsed = parseSubtitleText(text);
+      }catch(_){}
+    }
+
+    if(!parsed.length){
+      alert("没有识别到字幕时间轴。请确认字幕里有类似：00:00:01,000 --> 00:00:03,000");
+      e.target.value = "";
+      return;
+    }
+
+    subtitles = parsed;
+    currentIndex = 0;
+    sentenceModeRunning = false;
+    sentencePlayCount = 0;
+
+    renderSubtitle();
+    e.target.value = "";
+  }catch(err){
+    console.error(err);
+    alert("字幕读取失败。");
+    e.target.value = "";
+  }
+});
+
+function parseSubtitleText(text){
+  const cleaned = text.replace(/^WEBVTT[^\n]*\n+/i,"").trim();
+  if(!cleaned)return [];
+
+  const lines = cleaned.split("\n");
+  const out = [];
+
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line.includes("-->"))continue;
+
+    const [left,rightRaw] = line.split("-->");
+    if(!rightRaw)continue;
+
+    const right = rightRaw.trim().split(/\s+/)[0];
+    const start = parseTime(left.trim());
+    const end = parseTime(right);
+
+    if(!(end > start))continue;
+
+    const textLines = [];
+    let j = i + 1;
+
+    while(j < lines.length){
+      const next = lines[j];
+
+      if(!next.trim())break;
+      if(next.includes("-->"))break;
+
+      // 跳过纯序号
+      if(/^\d+$/.test(next.trim()) && textLines.length===0){
+        j++;
+        continue;
+      }
+
+      textLines.push(next);
+      j++;
+    }
+
+    out.push({
+      start,
+      end,
+      text:textLines.join("\n").trim()
+    });
+
+    i = j - 1;
+  }
+
+  return out.filter(x=>x.text);
+}
+
+function parseTime(t){
+  const m = t.match(/(?:(\d+):)?(\d+):(\d+)[,.](\d+)/);
+  if(!m)return 0;
+
+  const h = +(m[1] || 0);
+  const min = +m[2];
+  const sec = +m[3];
+  const ms = +(m[4].padEnd(3,"0").slice(0,3));
+
+  return h*3600 + min*60 + sec + ms/1000;
+}
+
+function splitLanguage(text){
+  const zh=[], en=[], other=[];
+
+  for(const line of text.split(/\n+/).map(x=>x.trim()).filter(Boolean)){
+    if(/[\u3400-\u9fff]/.test(line))zh.push(line);
+    else if(/[A-Za-z]/.test(line))en.push(line);
+    else other.push(line);
+  }
+
+  return {
+    zh:zh.join("\n"),
+    en:en.join("\n"),
+    other:other.join("\n")
+  };
+}
+
+function getDisplayedSubtitle(item){
+  if(!item)return "请先导入字幕";
+
+  const mode = $("#displayMode").value;
+  if(mode==="none")return "";
+
+  const p = splitLanguage(item.text);
+
+  if(mode==="zh")return p.zh || "（本句没有中文）";
+  if(mode==="en")return p.en || "（本句没有英文）";
+
+  return [p.en,p.zh,p.other].filter(Boolean).join("\n") || item.text;
+}
+
+function renderSubtitle(){
+  const item = subtitles[currentIndex];
+
+  $("#subtitle").textContent = getDisplayedSubtitle(item);
+  $("#subtitleMeta").textContent = subtitles.length
+    ? `${currentIndex+1} / ${subtitles.length}`
+    : "0 / 0";
+
+  $("#subtitleList").innerHTML = subtitles.map((s,i)=>{
+    const active = i===currentIndex ? "active" : "";
+    return `<div class="item ${active}" onclick="playLineFromList(${i})">
+      <span class="itemNum">${i+1}.</span>${escapeHtml(getDisplayedSubtitle(s))}
+    </div>`;
+  }).join("");
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+    '"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function applyFontSize(){
+  const n = +$("#fontSize").value || 24;
+  $("#subtitle").style.fontSize = n+"px";
+  $("#subtitleList").style.fontSize = Math.max(14,n-6)+"px";
+}
+
+function applySpeed(){
+  if(media)media.playbackRate = +$("#speed").value;
+  saveCurrentPlaybackState();
+}
+
+function onPlayModeChange(){
+  sentenceModeRunning = false;
+  sentencePlayCount = 0;
+  stopSentenceTimer();
+
+  $("#repeatOptions").style.display =
+    $("#playMode").value==="repeatNext" ? "block" : "none";
+}
+
+function toggleMainPlayPause(){
+  if(!media)return;
+
+  if(!media.paused){
+    media.pause();
+    return;
+  }
+
+  startPlaybackAccordingToMode(false);
+}
+
+function startPlaybackAccordingToMode(forceCurrentLineStart){
+  if(!media)return;
+
+  stopSentenceTimer();
+  applySpeed();
+
+  const mode = $("#playMode").value;
+
+  if(mode==="full"){
+    sentenceModeRunning = false;
+
+    if(forceCurrentLineStart && subtitles.length){
+      setMediaTime(subtitles[currentIndex].start);
+    }
+
+    media.play();
+    return;
+  }
+
+  if(!subtitles.length){
+    alert("请先导入字幕。");
+    return;
+  }
+
+  if(forceCurrentLineStart){
+    setMediaTime(subtitles[currentIndex].start);
+  }else{
+    const idx = findSubtitleIndexAt(media.currentTime);
+    if(idx>=0){
+      currentIndex = idx;
+      renderSubtitle();
+    }else{
+      setMediaTime(subtitles[currentIndex].start);
+    }
+  }
+
+  sentenceModeRunning = true;
+  sentencePlayCount = 0;
+
+  media.play();
+}
+
+function updatePlayPauseButton(){
+  $("#mainPlayPause").textContent =
+    media && !media.paused ? "⏸ 暂停" : "▶ 播放";
+}
+
+function playPreviousLine(){
+  if(!subtitles.length)return;
+
+  currentIndex = Math.max(0,currentIndex-1);
+  renderSubtitle();
+
+  // 点击上一句：立即从上一句开头自动播放
+  startPlaybackAccordingToMode(true);
+}
+
+function playNextLine(){
+  if(!subtitles.length)return;
+
+  currentIndex = Math.min(subtitles.length-1,currentIndex+1);
+  renderSubtitle();
+
+  // 点击下一句：立即从下一句开头自动播放
+  startPlaybackAccordingToMode(true);
+}
+
+function playLineFromList(index){
+  if(!subtitles.length)return;
+
+  currentIndex = Math.max(0,Math.min(subtitles.length-1,index));
+  renderSubtitle();
+
+  // 点击字幕列表：同样立即播放
+  startPlaybackAccordingToMode(true);
+}
+
+function onTimeUpdate(){
+  if(!media)return;
+
+  updateTimeText();
+  drawWave();
+
+  // A/B 循环最高优先级
+  if(abEnabled && pointA!==null && pointB!==null && pointB>pointA){
+    if(media.currentTime < pointA || media.currentTime >= pointB){
+      setMediaTime(pointA);
+      if(media.paused)media.play();
+    }
+    return;
+  }
+
+  if(!subtitles.length)return;
+
+  const mode = $("#playMode").value;
+
+  // 完整播放：字幕严格跟随媒体当前时间
+  if(mode==="full"){
+    const idx = findSubtitleIndexAt(media.currentTime);
+    if(idx>=0 && idx!==currentIndex){
+      currentIndex = idx;
+      renderSubtitle();
+    }
+    return;
+  }
+
+  if(!sentenceModeRunning)return;
+
+  const item = subtitles[currentIndex];
+  if(!item)return;
+
+  if(media.currentTime >= item.end - 0.025){
+    handleSentenceEnd();
+  }
+}
+
+function handleSentenceEnd(){
+  if(!media || !subtitles.length || !sentenceModeRunning)return;
+
+  sentenceModeRunning = false;
+  media.pause();
+
+  const item = subtitles[currentIndex];
+  setMediaTime(item.end);
+
+  const mode = $("#playMode").value;
+
+  // 播放本句：一遍后停止
+  if(mode==="current"){
+    sentencePlayCount = 0;
+    return;
+  }
+
+  // 单句循环：立即回到本句开头
+  if(mode==="loop"){
+    sentenceTimer = setTimeout(()=>{
+      setMediaTime(subtitles[currentIndex].start);
+      sentenceModeRunning = true;
+      applySpeed();
+      media.play();
+    },200);
+    return;
+  }
+
+  // N遍后下一句
+  if(mode==="repeatNext"){
+    const countValue = $("#repeatCount").value;
+    const gapMs = (+$("#gap").value)*1000;
+
+    // 无限
+    if(countValue==="inf"){
+      sentenceTimer = setTimeout(()=>{
+        setMediaTime(subtitles[currentIndex].start);
+        sentenceModeRunning = true;
+        applySpeed();
+        media.play();
+      },gapMs);
+      return;
+    }
+
+    // 0 = 不重复，本句播放1遍后直接下一句
+    const extraRepeats = Math.max(0,+countValue);
+    sentencePlayCount++;
+
+    if(sentencePlayCount <= extraRepeats){
+      sentenceTimer = setTimeout(()=>{
+        setMediaTime(subtitles[currentIndex].start);
+        sentenceModeRunning = true;
+        applySpeed();
+        media.play();
+      },gapMs);
+      return;
+    }
+
+    if(currentIndex < subtitles.length-1){
+      sentenceTimer = setTimeout(()=>{
+        currentIndex++;
+        sentencePlayCount = 0;
+        renderSubtitle();
+        setMediaTime(subtitles[currentIndex].start);
+        sentenceModeRunning = true;
+        applySpeed();
+        media.play();
+      },gapMs);
+    }else{
+      sentencePlayCount = 0;
+    }
+  }
+}
+
+function findSubtitleIndexAt(time){
+  // 二分查找，字幕多时也能保持同步
+  let lo=0, hi=subtitles.length-1;
+
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    const s=subtitles[mid];
+
+    if(time < s.start)hi=mid-1;
+    else if(time >= s.end)lo=mid+1;
+    else return mid;
+  }
+
+  return -1;
+}
+
+function setMediaTime(t){
+  if(!media)return;
+
+  internalSeek = true;
+  media.currentTime = Math.max(0,t);
+
+  setTimeout(()=>{
+    internalSeek = false;
+  },50);
+}
+
+function stopSentenceTimer(){
+  if(sentenceTimer){
+    clearTimeout(sentenceTimer);
+    sentenceTimer = null;
+  }
+}
+
+function getSeekSeconds(id){
+  return +$("#"+id).value || 5;
+}
+
+function seekRelative(delta){
+  if(!media)return;
+
+  stopSentenceTimer();
+  sentenceModeRunning = false;
+  sentencePlayCount = 0;
+
+  const duration = isFinite(media.duration) ? media.duration : Infinity;
+  const target = Math.max(0,Math.min(duration,media.currentTime + delta));
+
+  setMediaTime(target);
+
+  // 快进/快退后字幕立刻同步
+  syncSubtitleToCurrentTime();
+
+  drawWave();
+  updateTimeText();
+}
+
+function syncSubtitleToCurrentTime(){
+  if(!media || !subtitles.length)return;
+
+  const idx = findSubtitleIndexAt(media.currentTime);
+  if(idx>=0 && idx!==currentIndex){
+    currentIndex = idx;
+    renderSubtitle();
+  }
+}
+
+function setPointA(){
+  if(!media)return;
+
+  pointA = media.currentTime;
+
+  if(pointB!==null && pointB<=pointA){
+    pointB = null;
+  }
+
+  updateABUI();
+}
+
+function setPointB(){
+  if(!media)return;
+
+  pointB = media.currentTime;
+
+  if(pointA!==null && pointB<=pointA){
+    alert("B 点必须在 A 点之后。");
+    pointB = null;
+  }
+
+  updateABUI();
+}
+
+function toggleABLoop(){
+  if(!media)return;
+
+  if(abEnabled){
+    abEnabled = false;
+    updateABUI();
+    return;
+  }
+
+  if(pointA===null || pointB===null || pointB<=pointA){
+    alert("请先设置 A 点和 B 点。");
+    return;
+  }
+
+  abEnabled = true;
+
+  if(media.currentTime < pointA || media.currentTime >= pointB){
+    setMediaTime(pointA);
+  }
+
+  if(media.paused){
+    media.play();
+  }
+
+  updateABUI();
+}
+
+function updateABUI(){
+  $("#btnA").classList.toggle("on",pointA!==null);
+  $("#btnB").classList.toggle("on",pointB!==null);
+  $("#btnAB").classList.toggle("on",abEnabled);
+
+  $("#btnAB").textContent = abEnabled ? "A/B循环 ✓" : "A/B循环";
+
+  $("#abInfo").textContent =
+    `A：${pointA===null?"未设置":formatTime(pointA)}　B：${pointB===null?"未设置":formatTime(pointB)}`;
+
+  drawWave();
+}
+
+async function buildWave(file){
+  wavePeaks = [];
+  waveReady = false;
+  $("#waveStatus").textContent = "正在生成波形…";
+
+  try{
+    const buffer = await file.arrayBuffer();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx)throw new Error("AudioContext 不支持");
+
+    const ctx = new AudioCtx();
+    const audioBuffer = await ctx.decodeAudioData(buffer.slice(0));
+    const data = audioBuffer.getChannelData(0);
+
+    const bins = 700;
+    const step = Math.max(1,Math.floor(data.length/bins));
+
+    for(let i=0;i<bins;i++){
+      let peak = 0;
+      const start = i*step;
+      const end = Math.min(data.length,start+step);
+      const sampleStep = Math.max(1,Math.floor(step/40));
+
+      for(let j=start;j<end;j+=sampleStep){
+        peak = Math.max(peak,Math.abs(data[j]));
+      }
+
+      wavePeaks.push(peak);
+    }
+
+    waveReady = true;
+    $("#waveStatus").textContent = "波形已生成；白色竖线为当前播放位置，可点击或拖动定位。";
+
+    try{await ctx.close()}catch(_){}
+  }catch(err){
+    console.warn(err);
+    $("#waveStatus").textContent = "当前媒体无法生成真实波形，但进度条仍可点击或拖动定位。";
+  }
+
+  drawWave();
+}
+
+function resizeWaveCanvas(){
+  const canvas = $("#wave");
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+
+  const targetW = Math.round(w*dpr);
+  const targetH = Math.round(h*dpr);
+
+  if(canvas.width!==targetW || canvas.height!==targetH){
+    canvas.width = targetW;
+    canvas.height = targetH;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  return {ctx,w,h};
+}
+
+function drawWave(){
+  const {ctx,w,h} = resizeWaveCanvas();
+
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "#f4f5f7";
+  ctx.fillRect(0,0,w,h);
+
+  const ratio =
+    media && isFinite(media.duration) && media.duration>0
+      ? media.currentTime/media.duration
+      : 0;
+
+  if(waveReady && wavePeaks.length){
+    const mid = h/2;
+
+    for(let i=0;i<wavePeaks.length;i++){
+      const x = i/wavePeaks.length*w;
+      const amp = Math.max(1,wavePeaks[i]*(h*.44));
+
+      ctx.fillStyle = (i/wavePeaks.length)<=ratio ? "#1f6feb" : "#9aa0a6";
+      ctx.fillRect(
+        x,
+        mid-amp,
+        Math.max(1,w/wavePeaks.length),
+        amp*2
+      );
+    }
+  }else{
+    ctx.fillStyle = "#c4c7cc";
+    ctx.fillRect(0,h/2-2,w,4);
+
+    ctx.fillStyle = "#1f6feb";
+    ctx.fillRect(0,h/2-2,w*ratio,4);
+  }
+
+  // A
+  if(pointA!==null && media?.duration){
+    const x = pointA/media.duration*w;
+    ctx.fillStyle = "#0a8f45";
+    ctx.fillRect(x,0,2,h);
+  }
+
+  // B
+  if(pointB!==null && media?.duration){
+    const x = pointB/media.duration*w;
+    ctx.fillStyle = "#d73a49";
+    ctx.fillRect(x,0,2,h);
+  }
+
+  // 当前播放位置竖线 + 圆点
+  if(media?.duration){
+    const x = Math.max(0,Math.min(w,ratio*w));
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(Math.max(0,x-1.5),0,3,h);
+
+    ctx.beginPath();
+    ctx.arc(x,h/2,6,0,Math.PI*2);
+    ctx.fillStyle = "#111";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+  }
+}
+
+function seekWave(event){
+  if(!media || !isFinite(media.duration) || media.duration<=0)return;
+
+  stopSentenceTimer();
+  sentenceModeRunning = false;
+  sentencePlayCount = 0;
+
+  const rect = $("#wave").getBoundingClientRect();
+  const x = Math.max(0,Math.min(rect.width,event.clientX-rect.left));
+
+  setMediaTime((x/rect.width)*media.duration);
+
+  syncSubtitleToCurrentTime();
+  drawWave();
+  updateTimeText();
+}
+
+$("#wave").addEventListener("pointerdown",e=>{
+  draggingWave = true;
+  $("#wave").setPointerCapture(e.pointerId);
+  seekWave(e);
+});
+$("#wave").addEventListener("pointermove",e=>{
+  if(draggingWave)seekWave(e);
+});
+$("#wave").addEventListener("pointerup",()=>draggingWave=false);
+$("#wave").addEventListener("pointercancel",()=>draggingWave=false);
+
+window.addEventListener("resize",drawWave);
+
+function formatTime(sec){
+  if(!isFinite(sec))return "00:00";
+
+  sec = Math.max(0,Math.floor(sec));
+
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+
+  if(h){
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  }
+
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function updateTimeText(){
+  $("#currentTimeText").textContent = formatTime(media?.currentTime || 0);
+  $("#durationText").textContent = formatTime(media?.duration || 0);
+}
+
+function captureSelection(){
+  setTimeout(()=>{
+    const text = (window.getSelection()?.toString() || "").trim();
+
+    if(!text || text.length>500)return;
+
+    selectedText = text;
+    $("#lookupText").textContent = text;
+    $("#lookupResult").textContent = "可查询中文、音标、词性、释义和例句。";
+    $("#lookup").style.display = "block";
+  },80);
+}
+
+$("#subtitle").addEventListener("mouseup",captureSelection);
+$("#subtitle").addEventListener("touchend",captureSelection);
+$("#subtitleList").addEventListener("mouseup",captureSelection);
+$("#subtitleList").addEventListener("touchend",captureSelection);
+
+async function englishLookupSelection(){
+  const q=(selectedText||"").trim();
+  const box=$("#lookupResult");
+
+  if(!q){
+    box.textContent="请先选中英文单词、短语或句子。";
+    return;
+  }
+
+  box.innerHTML='<div style="font-weight:700">正在查询…</div>';
+
+  const isWord=/^[A-Za-z][A-Za-z'-]*$/.test(q);
+  let chinese="";
+  let phonetic="";
+  let meanings=[];
+  let examples=[];
+
+  // 中文翻译
+  try{
+    chinese=await translateToChinese(q);
+  }catch(_){}
+
+  // 单词：补充音标、词性、释义、例句
+  if(isWord){
+    try{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),7000);
+
+      const r=await fetch(
+        "https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(q),
+        {signal:controller.signal}
+      );
+      clearTimeout(timer);
+
+      if(r.ok){
+        const data=await r.json();
+        const entry=Array.isArray(data)?data[0]:null;
+
+        if(entry){
+          phonetic=(entry.phonetic||"").trim();
+
+          if(!phonetic && Array.isArray(entry.phonetics)){
+            const p=entry.phonetics.find(x=>x && x.text);
+            if(p)phonetic=p.text||"";
+          }
+
+          if(Array.isArray(entry.meanings)){
+            entry.meanings.slice(0,4).forEach(m=>{
+              const defs=(m.definitions||[]).slice(0,3);
+              if(!defs.length)return;
+
+              meanings.push({
+                pos:m.partOfSpeech||"",
+                defs:defs.map(d=>d.definition||"").filter(Boolean)
+              });
+
+              defs.forEach(d=>{
+                if(d.example && examples.length<4)examples.push(d.example);
+              });
+            });
+          }
+        }
+      }
+    }catch(_){}
+  }
+
+  let out=
+    '<div style="font-size:20px;font-weight:800;margin-bottom:7px">'+escLookup(q)+'</div>'+
+    '<div style="margin:5px 0"><b>中文：</b>'+escLookup(chinese||"暂未查到")+'</div>';
+
+  if(isWord){
+    out+='<div style="margin:5px 0"><b>音标：</b>'+escLookup(phonetic||"暂未查到")+'</div>';
+  }
+
+  if(meanings.length){
+    out+='<div style="margin-top:8px"><b>词性 / 释义：</b></div>';
+
+    meanings.forEach(m=>{
+      out+='<div style="margin-top:7px">';
+
+      if(m.pos){
+        out+='<span style="font-weight:700">'+escLookup(m.pos)+'</span>';
+      }
+
+      out+='<ol style="margin:4px 0 0 20px;padding:0">';
+
+      m.defs.forEach(d=>{
+        out+='<li style="margin:3px 0">'+escLookup(d)+'</li>';
+      });
+
+      out+='</ol></div>';
+    });
+  }
+
+  if(isWord){
+    out+='<div style="margin-top:9px"><b>例句：</b></div>';
+
+    if(examples.length){
+      examples.forEach((ex,i)=>{
+        out+='<div style="margin-top:5px">'+(i+1)+'. '+escLookup(ex)+'</div>';
+      });
+    }else{
+      out+='<div style="margin-top:5px;color:#bbb">当前词典没有返回例句。</div>';
+    }
+  }
+
+  box.innerHTML=out;
+}
+
+async function translateToChinese(q){
+  // 第一接口
+  try{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),7000);
+
+    const url=
+      "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q="
+      +encodeURIComponent(q);
+
+    const r=await fetch(url,{signal:controller.signal});
+    clearTimeout(timer);
+
+    if(!r.ok)throw new Error();
+
+    const data=await r.json();
+
+    if(Array.isArray(data)&&Array.isArray(data[0])){
+      const text=data[0].map(x=>Array.isArray(x)?(x[0]||""):"").join("").trim();
+      if(text)return text;
+    }
+  }catch(_){}
+
+  // 备用接口
+  const r2=await fetch(
+    "https://api.mymemory.translated.net/get?q="+
+    encodeURIComponent(q)+
+    "&langpair=en|zh-CN"
+  );
+
+  if(!r2.ok)return "";
+
+  const d2=await r2.json();
+  return (d2&&d2.responseData&&d2.responseData.translatedText||"").trim();
+}
+
+function escLookup(s){
+  return String(s).replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function doubaoSearchSelection(){
+  const q=(selectedText||"").trim();
+  if(!q)return;
+
+  const prompt=
+    "请详细解释这个英文单词、短语或句子：\n"+
+    q+
+    "\n\n请包括：\n1. 中文意思\n2. 音标或发音提示\n3. 词性\n4. 常见用法\n5. 例句";
+
+  window.open(
+    "https://www.doubao.com/chat/?q="+encodeURIComponent(prompt),
+    "_blank",
+    "noopener"
+  );
+}
+
+function speakSelection(){
+  if(!selectedText)return;
+
+  speechSynthesis.cancel();
+
+  const u = new SpeechSynthesisUtterance(selectedText);
+  u.lang = /[\u3400-\u9fff]/.test(selectedText) ? "zh-CN" : "en-US";
+  u.rate = .9;
+
+  speechSynthesis.speak(u);
+}
+
+function hideLookup(){
+  $("#lookup").style.display = "none";
+}
+
+restoreSavedSettings();
+renderSubtitle();
+applyFontSize();
+onPlayModeChange();
+drawWave();
+updateABUI();
+updatePlayPauseButton();
+updateEpisodePlayPauseButton();
+refreshPlaylistSelect();
+restoreSavedPlaylist();
+
+window.addEventListener("pagehide", saveCurrentPlaybackState);
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden)saveCurrentPlaybackState();
+});
+</script>
+</body>
+</html>
